@@ -18,6 +18,7 @@ def DDC_loss(source_activation, target_activation):
 	return loss
 
 class mix_mmdaloss(nn.Module):
+
 	def __init__(self,batch_size=64):
 		super(mix_mmdaloss,self).__init__()
 		self.bs = batch_size
