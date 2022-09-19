@@ -81,6 +81,7 @@ def get_test_loader(data, height, width, batchsize, workers, test_set=None):
 
 
 def main(args):
+    print('start time:', time.asctime(time.localtime()))
     start_epoch = best_mAP = 0
     start_time =time.monotonic()
     assert (args.batch_size % 3) != 0
@@ -161,9 +162,12 @@ def main(args):
     del ds_class_loader, sour_cen_list, sour_centers, sou_fea
 
     ##init trainer
-    trainer = idm_trainer(model, args.fc_class, mu1=args.mu1, mu2=args.mu2, mu3=args.mu3, xbm=xbm,margin=args.margin)
+    trainer = idm_trainer(args,model,args.fc_class, mu1=args.mu1, mu2=args.mu2, mu3=args.mu3, a1=args.a1,a2=args.a2,xbm=xbm,margin=args.margin)
+
 
     for epoch in range(start_epoch,args.epochs):
+        epoch_time = time.time()
+
         ###target_data cluster
         with torch.no_grad():
             dt_class_loader = get_test_loader(target_data, args.height, args.width, args.batch_size,
@@ -182,7 +186,7 @@ def main(args):
             num_id = len(set(labels)) - (1 if -1 in labels else 0)
             args.t_class = num_id
 
-        print('第{}个epoch聚类得到了{}个类'.format(epoch, num_id))
+        print('第{}个epoch{}个样本聚类得到了{}个类'.format(epoch,len(labels), num_id))
 
         # genrate new dataset anf calculate target centers
 
@@ -211,7 +215,7 @@ def main(args):
         dt_train_loader.new_epoch()
 
         trainer.train(epoch, args.stage, ds_train_loader, dt_train_loader, optim, args.s_class, args.t_class,
-                      args.iters, args.gamma,args.print_freq)
+                      args.iters,args.print_freq)
 
         if ((epoch + 1) % args.print_freq == 0) or (epoch == args.epochs - 1) or epoch == 0:
             print('test on target', args.dataset_target)
@@ -228,6 +232,7 @@ def main(args):
                   format(epoch, mAP, best_mAP, ' *' if is_best else ''))
 
         lr_scheduler.step()
+        print(f'第{epoch}个epoch的运行时间为：',time.time()-epoch_time)
 
 #    draw(trainer.losslist, trainer.losslist_ce, trainer.losslist_xbm, trainer.losslist_re, args.logs_dir)
 
@@ -247,7 +252,7 @@ if __name__ == '__main__':
     parser.add_argument('-ds', '--dataset-source', type=str, default='dukemtmc')
     parser.add_argument('-dt', '--dataset-target', type=str, default='market1501')
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="assert (bs %3) not equal to 0")
-    parser.add_argument('-j', '--workers', type=int, default=4)
+    parser.add_argument('-j', '--workers', type=int, default=0)
     parser.add_argument('--height', type=int, default=256, help="input height")
     parser.add_argument('--width', type=int, default=128, help="input width")
     parser.add_argument('--num-instances', type=int, default=4,
@@ -278,7 +283,9 @@ if __name__ == '__main__':
     parser.add_argument('--mu3', type=float, default=1,
                         help="weight for loss_div")
 
-    parser.add_argument('--gamma', type=float, default=0.0,
+    parser.add_argument('--a1', type=float, default=0.0,
+                        help="weight for loss_mmd")
+    parser.add_argument('--a2', type=float, default=0.0,
                         help="weight for loss_re")
 
     # models
@@ -303,13 +310,13 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.00035,
                         help="learning rate")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--iters', type=int, default=400)
     parser.add_argument('--warm_up_epochs', type=int, default=5)
     parser.add_argument('--step-size', type=int, default=40)
     # training configs
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--print-freq', type=int, default=50)
+    parser.add_argument('--print-freq', type=int, default=100)
     parser.add_argument('--eval-step', type=int, default=10)
 
     # path
